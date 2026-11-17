@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>MACK Trucks — Loading Dock Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <!-- West Coast Dual Mirror HUD Frames (Rendered via WebGL Scissor Viewports) -->
+    <div id="mirrors-hud" class="hud-layer hidden">
+      <div class="mirror-bezel mirror-left" id="mirror-left-box">
+        <div class="mirror-label">L — SIGHT SIDE</div>
+        <div class="mirror-glass-border"></div>
+      </div>
+      <div class="mirror-bezel mirror-right" id="mirror-right-box">
+        <div class="mirror-label">R — BLIND SIDE</div>
+        <div class="mirror-glass-border"></div>
+      </div>
+    </div>
+
+    <!-- Main In-Game HUD -->
+    <div id="game-hud" class="hud-layer hidden">
+      <!-- Top Telemetry Bar -->
+      <header class="top-telemetry">
+        <div class="brand-pill">
+          <span class="bulldog-icon" aria-hidden="true">◆</span>
+          <div>
+            <div class="brand-name">MACK DOCK MASTER</div>
+            <div class="level-badge" id="hud-level-name">LEVEL 1 • ROOKIE</div>
+          </div>
+        </div>
+
+        <div class="dock-alignment-panel">
+          <div class="metric-block">
+            <span class="metric-label">DOCK DIST</span>
+            <span class="metric-value" id="hud-dist">24.0 m</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-block">
+            <span class="metric-label">LAT OFFSET</span>
+            <span class="metric-value" id="hud-lat">0.00 m</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-block">
+            <span class="metric-label">TRAILER ANGLE</span>
+            <span class="metric-value" id="hud-angle">0.0°</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-block">
+            <span class="metric-label">TIME</span>
+            <span class="metric-value" id="hud-time">00:00</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-block">
+            <span class="metric-label">STRIKES</span>
+            <span class="metric-value" id="hud-strikes">0 / 3</span>
+          </div>
+        </div>
+
+        <div class="top-actions">
+          <button class="hud-btn" id="btn-menu" title="Change Difficulty / Menu (Esc)">MENU</button>
+          <button class="hud-btn" id="btn-reset" title="Reset Truck Position (R)">RESET [R]</button>
+          <button class="hud-btn" id="btn-mute" title="Toggle Engine Sound">🔊</button>
+        </div>
+      </header>
+
+      <!-- Live Status Banner (Dock Lock Hold / Jackknife Warning / Collision Toast) -->
+      <div id="status-banner" class="status-banner hidden">
+        <div class="status-text" id="status-banner-text">HOLD BRAKE TO LOCK DOCK...</div>
+        <div class="hold-progress-track" id="hold-progress-track">
+          <div class="hold-progress-fill" id="hold-progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Bottom-Left Camera & Assist Controls -->
+      <div class="controls-dock">
+        <div class="cam-strip">
+          <span class="strip-title">CAMERA [C]</span>
+          <button class="chip-btn active" data-cam="0">1 Orbit</button>
+          <button class="chip-btn" data-cam="1">2 Bulldog POV</button>
+          <button class="chip-btn" data-cam="2">3 Overhead</button>
+          <button class="chip-btn" data-cam="3">4 Dock Bay</button>
+        </div>
+        <div class="assist-strip">
+          <button class="chip-btn active" id="btn-toggle-mirrors" title="Toggle Side Mirrors (M)">Mirrors [M]</button>
+          <button class="chip-btn active" id="btn-toggle-guide" title="Toggle Backing Guide Arcs (G)">Guide [G]</button>
+          <button class="chip-btn" id="btn-toggle-lights" title="Toggle Headlights (L)">Lights [L]</button>
+          <button class="chip-btn" id="btn-horn" title="Pull Mack Air Horn (H)">Air Horn [H]</button>
+        </div>
+        <div class="key-hints">
+          <span><b>W/S</b> or <b>↑/↓</b> Drive / Reverse</span>
+          <span><b>A/D</b> or <b>←/→</b> Steer</span>
+          <span><b>SPACE</b> Air Brake</span>
+          <span><b>Drag</b> Orbit Cam</span>
+        </div>
+      </div>
+
+      <!-- Touch Controls for Mobile/Tablet -->
+      <div class="touch-controls" id="touch-controls">
+        <div class="touch-left">
+          <button class="touch-btn" id="touch-steer-left">◀</button>
+          <button class="touch-btn" id="touch-steer-right">▶</button>
+        </div>
+        <div class="touch-right">
+          <button class="touch-btn touch-brake" id="touch-brake">BRAKE</button>
+          <div class="touch-pedals">
+            <button class="touch-btn touch-rev" id="touch-rev">REV</button>
+            <button class="touch-btn touch-fwd" id="touch-fwd">DRIVE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom-Right Mack mDRIVE Instrument Cluster -->
+      <div class="instrument-cluster">
+        <!-- Steering Wheel & Articulation Widget -->
+        <div class="gauges-row">
+          <div class="mini-widget" title="Mack Flat-Bottom Steering Wheel Angle">
+            <svg viewBox="0 0 80 80" class="wheel-svg" id="hud-steering-svg">
+              <circle cx="40" cy="40" r="31" fill="none" stroke="#2c323d" stroke-width="7" />
+              <path
+                d="M 13 54 A 31 31 0 1 1 67 54 L 58 58 L 22 58 Z"
+                fill="none"
+                stroke="#d4dbe6"
+                stroke-width="5.5"
+                stroke-linejoin="round"
+              />
+              <!-- Red top center stripe -->
+              <line x1="40" y1="6" x2="40" y2="13" stroke="#e01e37" stroke-width="4" stroke-linecap="round" />
+              <!-- Spokes -->
+              <path d="M 12 40 L 31 40 M 68 40 L 49 40 M 40 46 L 40 58" stroke="#9aa5b5" stroke-width="4" />
+              <circle cx="40" cy="40" r="9" fill="#1b1f26" stroke="#d4af37" stroke-width="2" />
+            </svg>
+            <div class="mini-label" id="hud-steer-deg">0°</div>
+          </div>
+
+          <div class="mini-widget" title="Tractor-Trailer Fifth Wheel Articulation">
+            <svg viewBox="0 0 80 80" class="hitch-svg">
+              <!-- Reference arc -->
+              <path d="M 14 48 A 28 28 0 0 1 66 48" fill="none" stroke="#2a303b" stroke-width="3" stroke-dasharray="3 3" />
+              <!-- Trailer rectangle (fixed vertical reference) -->
+              <rect x="34" y="38" width="12" height="32" rx="2" fill="#8b95a5" stroke="#d8dee9" stroke-width="1.2" />
+              <!-- Rotating Tractor icon around kingpin (40, 41) -->
+              <g id="hud-hitch-tractor" transform="rotate(0 40 41)">
+                <rect x="35" y="13" width="10" height="26" rx="2" fill="#c41230" stroke="#ffccd5" stroke-width="1.2" />
+                <rect x="37" y="9" width="6" height="6" rx="1" fill="#d4af37" />
+              </g>
+              <circle cx="40" cy="41" r="2.6" fill="#d4af37" />
+            </svg>
+            <div class="mini-label" id="hud-hitch-deg">HITCH 0°</div>
+          </div>
+        </div>
+
+        <!-- mDRIVE Digital Readout -->
+        <div class="mdrive-readout">
+          <div class="gear-box">
+            <span class="gear-caption">mDRIVE</span>
+            <span class="gear-char" id="hud-gear">N</span>
+          </div>
+          <div class="speed-box">
+            <div class="speed-num" id="hud-speed">0.0</div>
+            <div class="speed-unit">MPH</div>
+          </div>
+        </div>
+
+        <div class="rpm-bar-wrap">
+          <div class="rpm-bar-fill" id="hud-rpm-fill"></div>
+        </div>
+        <div class="brake-indicator hidden" id="hud-park-badge">((P)) AIR BRAKE SET</div>
+      </div>
+    </div>
+
+    <!-- Main Menu / Difficulty & Livery Selection Overlay -->
+    <div id="menu-overlay" class="modal-backdrop">
+      <div class="menu-card">
+        <div class="menu-header">
+          <div class="mack-crest">
+            <svg viewBox="0 0 64 44" class="crest-svg" aria-hidden="true">
+              <polygon points="32,2 61,22 32,42 3,22" fill="#14171d" stroke="#d4af37" stroke-width="2.5" />
+              <polygon points="32,6 55,22 32,38 9,22" fill="none" stroke="#c41230" stroke-width="1.5" />
+              <text x="32" y="27" text-anchor="middle" fill="#ffffff" font-family="Chakra Petch, sans-serif" font-weight="700" font-size="14" letter-spacing="2">MACK</text>
+            </svg>
+          </div>
+          <div>
+            <p class="eyebrow">HEAVY-DUTY FREIGHT TERMINAL TRAINING</p>
+            <h1>MACK LOADING DOCK SIMULATOR</h1>
+            <p class="subtitle">
+              Take the wheel of an articulated <strong>MACK Super-Liner Conventional &amp; 53' Dry-Van Rig</strong>.
+              Master fifth-wheel counter-steering, check your West Coast mirrors, and back cleanly onto the dock bumpers.
+            </p>
+          </div>
+        </div>
+
+        <!-- Livery Color Picker for the Iconic Mack Truck -->
+        <div class="livery-bar">
+          <span class="section-label">SELECT MACK RIG PAINT LIVERY:</span>
+          <div class="livery-swatches" id="livery-swatches">
+            <button class="swatch-btn active" data-livery="red" title="Mack Heritage Bulldog Red">
+              <span class="swatch-dot" style="background: linear-gradient(135deg, #d91432, #7a091b)"></span>
+              Bulldog Crimson
+            </button>
+            <button class="swatch-btn" data-livery="blackgold" title="Black & Gold Pedigree Edition">
+              <span class="swatch-dot" style="background: linear-gradient(135deg, #24272e, #d4af37)"></span>
+              Black &amp; Gold
+            </button>
+            <button class="swatch-btn" data-livery="green" title="Allentown Classic Forest Metallic">
+              <span class="swatch-dot" style="background: linear-gradient(135deg, #166534, #092e17)"></span>
+              Allentown Green
+            </button>
+            <button class="swatch-btn" data-livery="white" title="Highway Fleet Pearl & Chrome">
+              <span class="swatch-dot" style="background: linear-gradient(135deg, #f8fafc, #94a3b8)"></span>
+              Fleet Pearl White
+            </button>
+          </div>
+        </div>
+
+        <!-- Three Difficulty Levels -->
+        <div class="difficulty-grid">
+          <article class="diff-card" data-level="easy">
+            <div class="diff-tag tag-easy">DIFFICULTY I • EASY</div>
+            <h2>OFFSET BAY BACK</h2>
+            <p class="diff-desc">
+              Clear daylight apron with wide maneuver room in front of <strong>Bay 04</strong>. Learn reverse trailer pivot dynamics using live steering guide arcs.
+            </p>
+            <ul class="diff-specs">
+              <li><span>Maneuver:</span> Gentle S-Curve Offset Back</li>
+              <li><span>Environment:</span> Clear Daylight • Open Bay</li>
+              <li><span>Precision:</span> ±0.65m Lateral • ±6.5° Angle</li>
+              <li><span>Assists:</span> Mirrors + Path Guide ON</li>
+            </ul>
+            <div class="best-score" id="best-easy">Best: —</div>
+            <button class="start-btn" data-start="easy">DRIVE EASY SHIFT</button>
+          </article>
+
+          <article class="diff-card featured" data-level="medium">
+            <div class="diff-tag tag-medium">DIFFICULTY II • MEDIUM</div>
+            <h2>45° SIGHT-SIDE ALLEY</h2>
+            <p class="diff-desc">
+              Golden-hour rush at the terminal. Thread your 53' Mack trailer at 45° into <strong>Bay 03</strong> directly between two parked rigs with concrete barriers ahead.
+            </p>
+            <ul class="diff-specs">
+              <li><span>Maneuver:</span> Classic CDL 45° Alley Dock</li>
+              <li><span>Environment:</span> Golden Dusk • Flanked Bays</li>
+              <li><span>Precision:</span> ±0.45m Lateral • ±4.5° Angle</li>
+              <li><span>Hazards:</span> Adjacent Trailers &amp; Jersey Barriers</li>
+            </ul>
+            <div class="best-score" id="best-medium">Best: —</div>
+            <button class="start-btn" data-start="medium">DRIVE PRO CDL SHIFT</button>
+          </article>
+
+          <article class="diff-card" data-level="hard">
+            <div class="diff-tag tag-hard">DIFFICULTY III • HARD</div>
+            <h2>90° BLIND-SIDE NIGHT</h2>
+            <p class="diff-desc">
+              Floodlit wet-asphalt night shift. Execute a tight 90° blind-side jackknife alley back around a cargo barrier island into narrow <strong>Bay 02</strong>.
+            </p>
+            <ul class="diff-specs">
+              <li><span>Maneuver:</span> 90° Blind-Side Obstacle Hook</li>
+              <li><span>Environment:</span> Wet Night • Stadium Floodlights</li>
+              <li><span>Precision:</span> ±0.30m Lateral • ±3.0° Angle</li>
+              <li><span>Rules:</span> Soft Bumper Kiss • Max 2 Strikes</li>
+            </ul>
+            <div class="best-score" id="best-hard">Best: —</div>
+            <button class="start-btn" data-start="hard">DRIVE BULLDOG MASTER</button>
+          </article>
+        </div>
+
+        <footer class="menu-footer">
+          <span>ASSET CREDITS: Bespoke Three.js MACK Super-Liner &amp; 53' Trailer + CC0 Public Domain Industrial Props (Poly Haven)</span>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Results / Docked / Failed Modal -->
+    <div id="result-overlay" class="modal-backdrop hidden">
+      <div class="result-card">
+        <div class="result-badge" id="res-badge">DOCK LOCKED</div>
+        <h2 id="res-title">BUILT LIKE A MACK TRUCK!</h2>
+        <p class="res-subtitle" id="res-subtitle">Clean dock engagement on Bay 04.</p>
+
+        <div class="stars-row" id="res-stars" aria-label="Rating">
+          <span class="star">★</span>
+          <span class="star">★</span>
+          <span class="star">★</span>
+        </div>
+
+        <div class="score-banner">
+          <span class="score-label">CDL PRECISION SCORE</span>
+          <span class="score-total" id="res-score">940</span>
+        </div>
+
+        <div class="breakdown-grid" id="res-breakdown">
+          <div class="bd-item">
+            <span>Lateral Centering</span>
+            <strong id="res-lat">0.08 m</strong>
+          </div>
+          <div class="bd-item">
+            <span>Trailer Squareness</span>
+            <strong id="res-ang">1.1°</strong>
+          </div>
+          <div class="bd-item">
+            <span>Bumper Gap</span>
+            <strong id="res-gap">0.22 m</strong>
+          </div>
+          <div class="bd-item">
+            <span>Elapsed Time</span>
+            <strong id="res-time">00:48</strong>
+          </div>
+          <div class="bd-item">
+            <span>Yard Strikes</span>
+            <strong id="res-hits">0</strong>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button class="hud-btn large" id="btn-res-menu">LEVEL SELECT</button>
+          <button class="hud-btn large" id="btn-res-retry">RETRY SHIFT [R]</button>
+          <button class="start-btn large" id="btn-res-next">NEXT DIFFICULTY →</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

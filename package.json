@@ -1,0 +1,18 @@
+{
+  "name": "mack-dock-simulator",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MACK Trucks Loading Dock Backing Simulator built with Three.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
