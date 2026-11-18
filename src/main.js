@@ -512,8 +512,20 @@ document.querySelectorAll('.swatch-btn').forEach((btn) => {
   });
 });
 
-// Menu Difficulty Start Buttons
-document.querySelectorAll('[data-start]').forEach((btn) => {
+// Menu Difficulty Start Buttons (gracefully wait for MACK Pioneer 3D GLB stream if still loading)
+const startButtons = document.querySelectorAll('[data-start]');
+startButtons.forEach((btn) => {
+  const originalLabel = btn.textContent;
+  if (!rig.isModelLoaded()) {
+    btn.disabled = true;
+    btn.style.opacity = '0.65';
+    btn.textContent = 'LOADING PIONEER 3D RIG...';
+    rig.readyPromise.then(() => {
+      btn.disabled = false;
+      btn.style.opacity = '';
+      btn.textContent = originalLabel;
+    });
+  }
   btn.addEventListener('click', () => {
     audio.init();
     loadYardLevel(btn.dataset.start, true);
@@ -774,6 +786,7 @@ loadBestScoresUI();
 window.__MACK_SIM__ = {
   getState: () => ({
     phase: gamePhase,
+    modelLoaded: rig.isModelLoaded(),
     level: currentLevelKey,
     livery: selectedLivery,
     tractor: { x: physics.tractorX, z: physics.tractorZ, theta: physics.tractorTheta },
@@ -785,6 +798,11 @@ window.__MACK_SIM__ = {
     mirrorsVisible,
   }),
   startLevel: (lvl) => loadYardLevel(lvl, true),
+  waitUntilReady: () => rig.readyPromise,
+  setLivery: (lv) => {
+    selectedLivery = lv;
+    rig.setLivery(lv);
+  },
 };
 
 const clock = new THREE.Clock();
@@ -927,9 +945,12 @@ function animate() {
     guideGroup.visible = guideVisible;
   }
 
-  // 2. Render Main Viewport
+  // 2. Render Main Viewport (suppress interior windshield reflection glare in Camera 2 Bulldog POV)
+  const isInteriorPov = gamePhase === 'playing' && cameraMode === 1;
+  if (isInteriorPov) rig.setCabWindshieldVisible(false);
   renderer.autoClear = true;
   renderer.render(scene, mainCamera);
+  if (isInteriorPov) rig.setCabWindshieldVisible(true);
 
   // 3. Composite West Coast Mirror Glass HUD Quads
   if (gamePhase === 'playing' && mirrorsVisible) {

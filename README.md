@@ -1,6 +1,6 @@
-# MACK Trucks — Loading Dock Simulator (Three.js)
+# MACK Pioneer™ — Loading Dock Simulator (Three.js)
 
-An articulated Class-8 tractor-trailer loading dock backing simulator built with **Three.js** and **Vite**. Drive an iconic **MACK Super-Liner Conventional Tractor** coupled to a **53-foot MACK Dry-Van Trailer** and master fifth-wheel reverse counter-steering across three freight terminal shifts.
+An articulated Class-8 tractor-trailer loading dock backing simulator built with **Three.js** and **Vite**. Drive the flagship **MACK Pioneer™ Highway Tractor** coupled to a **53-foot MACK Dry-Van Trailer** and master fifth-wheel reverse counter-steering across three freight terminal shifts.
 
 ## Quick Start
 
@@ -11,10 +11,11 @@ npm run dev
 
 Open **http://localhost:5173/** in your browser.
 
-## 3D Models & Asset Credits
+## 3D Models & Asset Optimization
 
-- **Iconic MACK Super-Liner Conventional & 53' Articulated Trailer** (`src/mackTruck.js`):
-  - Because no royalty-free / CC0 3D model of a branded articulated MACK semi-truck exists publicly, a detailed bespoke PBR Three.js rig was engineered specifically for this simulator—complete with the **Gold MACK Bulldog hood ornament** (signifying an all-Mack powertrain), sculpted conventional hood and curved fenders, horizontal chrome radiator grille with **M A C K** emblem, split flat-glass windshield with sun visor, 5 amber roof marker lights, twin roof air horns, dual chrome vertical exhaust stacks with live diesel smoke particles, polished aluminum saddle fuel tanks, dynamic flexing red/blue gladhand air lines, steerable Alcoa wheels, and a 53' dry-van trailer in 4 selectable MACK paint liveries.
+- **Official MACK Pioneer™ Tractor (`public/models/mack_pioneer.glb` & `src/mackTruck.js`)**:
+  - Converted and game-optimized from the team's 265 MB `Mack_Pioneer_Apple_AR_v13_Exterior` USDZ/glTF CAD asset down to a **14.6 MB Meshopt-compressed GLB** (`EXT_meshopt_compression`) for fast web/Vercel delivery.
+  - Preserves 100% of the artist-retopologized clearcoat body panels (`CarPaint_SMATSG` wired to 4 selectable MACK paint liveries) and the **Gold MACK Bulldog hood ornament**, with individually hub-rigged steerable front wheels (`Wheel_FL`, `Wheel_FR`), rolling tandem drive duals (`Wheel_CL`, `Wheel_CR`, `Wheel_RL`, `Wheel_RR`), working LED projector headlights, rear tail/brake lamps, and CAD-exact `5.2257m` wheelbase & fifth-wheel coupling geometry.
 - **CC0 Public Domain Industrial Yard Props** (`public/models/`):
   - Sourced directly from [Poly Haven](https://polyhaven.com/models) under the **CC0 1.0 Universal Public Domain** license:
     - `concrete_road_barrier` (Concrete Jersey Barrier)
